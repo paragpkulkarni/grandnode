@@ -482,24 +482,7 @@ namespace Grand.Web.Areas.Admin.Controllers
                 //get directory name (remove the ending /)
                 uploadedItemDirectoryName = rootDirectories.First().FullName.TrimEnd('/');
 
-                var pluginDescriptorEntry = archive.Entries.Where(x => x.FullName.Contains("Description.txt")).FirstOrDefault();
-                if (pluginDescriptorEntry != null)
-                {
-                    using (var unzippedEntryStream = pluginDescriptorEntry.Open())
-                    {
-                        using (var reader = new StreamReader(unzippedEntryStream))
-                        {
-                            {
-                                descriptor = GetPluginDescriptorFromText(reader.ReadToEnd());
-
-                                //ensure that the plugin current version is supported
-                                if (!(descriptor as PluginDescriptor).SupportedVersions.Contains(GrandVersion.CurrentVersion))
-                                    throw new Exception($"This plugin doesn't support the current version - {GrandVersion.CurrentVersion}");
-                            }
-                        }
-                    }
-                }
-
+                //TODO - check if plugin support current version
                 var themeDescriptorEntry = archive.Entries.Where(x => x.FullName.Contains("theme.config")).FirstOrDefault();
                 if (themeDescriptorEntry != null)
                 {
@@ -534,29 +517,6 @@ namespace Grand.Web.Areas.Admin.Controllers
 
             //unzip archive (pluginsDirectory instead of pathToUpload because .zip includes folder that includes plugin contents)
             ZipFile.ExtractToDirectory(archivePath, directoryPath);
-
-            return descriptor;
-        }
-
-        public PluginDescriptor GetPluginDescriptorFromText(string text)
-        {
-            PluginDescriptor descriptor = new PluginDescriptor();
-
-            if (string.IsNullOrEmpty(text))
-                return descriptor;
-
-            try
-            {
-                string line = text.Split("\n").Where(x => x.Contains("SupportedVersions")).First();
-                var versions = line.Substring(line.IndexOf(' '), line.Length - line.IndexOf(' ')).Split(",");
-                for (int i = 0; i < versions.Length; i++)
-                {
-                    versions[i] = versions[i].Trim();
-                }
-
-                Array.ForEach(versions, x => descriptor.SupportedVersions.Add(x));
-            }
-            catch { }
 
             return descriptor;
         }
@@ -606,7 +566,7 @@ namespace Grand.Web.Areas.Admin.Controllers
                 {
                     pluginDescriptor.LimitedToStores = model.SelectedStoreIds.ToList();
                 }
-                PluginFileParser.SavePluginDescriptionFile(pluginDescriptor);
+                PluginFileParser.SavePluginConfigFile(pluginDescriptor);
                 //reset plugin cache
                 _pluginFinder.ReloadPlugins();
                 //locales

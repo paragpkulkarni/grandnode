@@ -11,17 +11,16 @@ namespace Grand.Core.Plugins
     {
         public PluginDescriptor()
         {
-            this.SupportedVersions = new List<string>();
-            this.LimitedToStores = new List<string>();
+            LimitedToStores = new List<string>();
         }
 
         public PluginDescriptor(Assembly referencedAssembly, FileInfo originalAssemblyFile,
             Type pluginType)
             : this()
         {
-            this.ReferencedAssembly = referencedAssembly;
-            this.OriginalAssemblyFile = originalAssemblyFile;
-            this.PluginType = pluginType;
+            ReferencedAssembly = referencedAssembly;
+            OriginalAssemblyFile = originalAssemblyFile;
+            PluginType = pluginType;
         }
         /// <summary>
         /// Plugin type
@@ -66,7 +65,7 @@ namespace Grand.Core.Plugins
         /// <summary>
         /// Gets or sets the supported versions 
         /// </summary>
-        public virtual IList<string> SupportedVersions { get; set; }
+        public virtual string SupportedVersion { get; set; }
 
         /// <summary>
         /// Gets or sets the author

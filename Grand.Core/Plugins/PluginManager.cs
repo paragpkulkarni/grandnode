@@ -54,7 +54,7 @@ namespace Grand.Core.Plugins
         {
             if (mvcCoreBuilder == null)
                 throw new ArgumentNullException("mvcCoreBuilder");
-            
+
             if (config == null)
                 throw new ArgumentNullException("config");
 
@@ -100,13 +100,13 @@ namespace Grand.Core.Plugins
                     }
 
                     //load description files
-                    foreach (var dfd in GetDescriptionFilesAndDescriptors(pluginFolder))
+                    foreach (var dfd in GetDescriptors(pluginFolder))
                     {
                         var descriptionFile = dfd.Key;
                         var pluginDescriptor = dfd.Value;
 
                         //ensure that version of plugin is valid
-                        if (!pluginDescriptor.SupportedVersions.Contains(GrandVersion.CurrentVersion, StringComparer.OrdinalIgnoreCase))
+                        if (pluginDescriptor.SupportedVersion.ToLowerInvariant() != GrandVersion.CurrentVersion.ToLowerInvariant())
                         {
                             incompatiblePlugins.Add(pluginDescriptor.SystemName);
                             continue;
@@ -298,7 +298,7 @@ namespace Grand.Core.Plugins
         /// </summary>
         /// <param name="pluginFolder">Plugin directory info</param>
         /// <returns>Original and parsed description files</returns>
-        private static IEnumerable<KeyValuePair<FileInfo, PluginDescriptor>> GetDescriptionFilesAndDescriptors(DirectoryInfo pluginFolder)
+        private static IEnumerable<KeyValuePair<FileInfo, PluginDescriptor>> GetDescriptors(DirectoryInfo pluginFolder)
         {
             if (pluginFolder == null)
                 throw new ArgumentNullException("pluginFolder");
@@ -306,13 +306,15 @@ namespace Grand.Core.Plugins
             //create list (<file info, parsed plugin descritor>)
             var result = new List<KeyValuePair<FileInfo, PluginDescriptor>>();
             //add display order and path to list
-            foreach (var descriptionFile in pluginFolder.GetFiles("Description.txt", SearchOption.AllDirectories))
+            foreach (var descriptionFile in pluginFolder.GetFiles("*.dll", SearchOption.AllDirectories))
             {
                 if (!IsPackagePluginFolder(descriptionFile.Directory))
                     continue;
 
-                //parse file
-                var pluginDescriptor = PluginFileParser.ParsePluginDescriptionFile(descriptionFile.FullName);
+                //prepare plugin description
+                var pluginDescriptor = PluginFileParser.PreparePluginDescription(descriptionFile);
+                if (pluginDescriptor == null)
+                    continue;
 
                 //populate list
                 result.Add(new KeyValuePair<FileInfo, PluginDescriptor>(descriptionFile, pluginDescriptor));
@@ -329,7 +331,7 @@ namespace Grand.Core.Plugins
         /// <param name="fileInfo">File info</param>
         /// <returns>Result</returns>
         private static bool IsAlreadyLoaded(FileInfo fileInfo)
-        {            
+        {
             try
             {
                 string fileNameWithoutExt = Path.GetFileNameWithoutExtension(fileInfo.FullName);
@@ -363,7 +365,7 @@ namespace Grand.Core.Plugins
             var _plug = config.PluginShadowCopy ? ShadowCopyFile(plug, Directory.CreateDirectory(_shadowCopyFolder.FullName)) : plug;
 
             try
-            {                
+            {
                 Assembly assembly = AssemblyLoadContext.Default.LoadFromAssemblyPath(_plug.FullName);
                 //we can now register the plugin definition
                 Log.Information("Adding to ApplicationParts: '{0}'", assembly.FullName);
@@ -376,7 +378,7 @@ namespace Grand.Core.Plugins
                 throw new InvalidOperationException($"The plugin directory for the {plug.Name} file exists in a folder outside of the allowed grandnode folder hierarchy - exception because of {plug.FullName} - exception: {ex.Message}");
             }
         }
-       
+
         /// <summary>
         /// Used to initialize plugins when running in Medium Trust
         /// </summary>
@@ -407,7 +409,7 @@ namespace Grand.Core.Plugins
                     {
                         File.Delete(shadowCopiedPlug.FullName);
                     }
-                    catch(Exception ex)
+                    catch (Exception ex)
                     {
                         shouldCopy = false;
                         Log.Error(ex, "PluginManager");
