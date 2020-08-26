@@ -219,6 +219,11 @@ namespace Grand.Domain.Customers
         /// </summary>
         public TwoFactorAuthenticationType TwoFactorAuthenticationType { get; set; }
 
+        /// <summary>
+        /// Gets or sets a value to disallow to login on multiple devices
+        /// </summary>
+        public bool DisallowMultiLogin { get; set; }
+
         #region Form fields
 
         /// <summary>

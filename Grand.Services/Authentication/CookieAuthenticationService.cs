@@ -1,6 +1,7 @@
 ﻿using Grand.Core;
 using Grand.Core.Configuration;
 using Grand.Domain.Customers;
+using Grand.Services.Common;
 using Grand.Services.Customers;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
@@ -25,6 +26,7 @@ namespace Grand.Services.Authentication
 
         private readonly CustomerSettings _customerSettings;
         private readonly ICustomerService _customerService;
+        private readonly IGenericAttributeService _genericAttributeService;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly GrandConfig _grandConfig;
         private Customer _cachedCustomer;
@@ -39,16 +41,19 @@ namespace Grand.Services.Authentication
         /// <param name="customerSettings">Customer settings</param>
         /// <param name="customerService">Customer service</param>
         /// <param name="httpContextAccessor">HTTP context accessor</param>
+        /// <param name="genericAttributeService">Generic sttribute service</param>
+        /// <param name="GrandConfig">AppConfig</param>
         public CookieAuthenticationService(CustomerSettings customerSettings,
             ICustomerService customerService,
             IHttpContextAccessor httpContextAccessor,
+            IGenericAttributeService genericAttributeService,
             GrandConfig grandConfig)
         {
             _customerSettings = customerSettings;
             _customerService = customerService;
             _httpContextAccessor = httpContextAccessor;
+            _genericAttributeService = genericAttributeService;
             _grandConfig = grandConfig;
-
         }
 
         #endregion
@@ -74,13 +79,19 @@ namespace Grand.Services.Authentication
             if (!string.IsNullOrEmpty(customer.Email))
                 claims.Add(new Claim(ClaimTypes.Email, customer.Email, ClaimValueTypes.Email, GrandCookieAuthenticationDefaults.ClaimsIssuer));
 
+            if (_customerSettings.DisallowMultiLogin)
+            {
+                var login_token = Guid.NewGuid().ToString();
+                claims.Add(new Claim(ClaimTypes.UserData, login_token, ClaimValueTypes.String, GrandCookieAuthenticationDefaults.ClaimsIssuer));
+                await _genericAttributeService.SaveAttribute(customer, SystemCustomerAttributeNames.LoginToken, login_token);
+            }
+
             //create principal for the current authentication scheme
             var userIdentity = new ClaimsIdentity(claims, GrandCookieAuthenticationDefaults.AuthenticationScheme);
             var userPrincipal = new ClaimsPrincipal(userIdentity);
 
             //set value indicating whether session is persisted and the time at which the authentication was issued
-            var authenticationProperties = new AuthenticationProperties
-            {
+            var authenticationProperties = new AuthenticationProperties {
                 IsPersistent = isPersistent,
                 IssuedUtc = DateTime.UtcNow,
                 ExpiresUtc = DateTime.UtcNow.AddHours(CommonHelper.CookieAuthExpires)
@@ -127,7 +138,9 @@ namespace Grand.Services.Authentication
                 var usernameClaim = authenticateResult.Principal.FindFirst(claim => claim.Type == ClaimTypes.Name
                     && claim.Issuer.Equals(GrandCookieAuthenticationDefaults.ClaimsIssuer, StringComparison.InvariantCultureIgnoreCase));
                 if (usernameClaim != null)
+                {
                     customer = await _customerService.GetCustomerByUsername(usernameClaim.Value);
+                }
             }
             else
             {
@@ -135,7 +148,18 @@ namespace Grand.Services.Authentication
                 var emailClaim = authenticateResult.Principal.FindFirst(claim => claim.Type == ClaimTypes.Email
                     && claim.Issuer.Equals(GrandCookieAuthenticationDefaults.ClaimsIssuer, StringComparison.InvariantCultureIgnoreCase));
                 if (emailClaim != null)
+                {
                     customer = await _customerService.GetCustomerByEmail(emailClaim.Value);
+                    if (_customerSettings.DisallowMultiLogin)
+                    {
+                        var tokenClaim = authenticateResult.Principal.FindFirst(claim => claim.Type == ClaimTypes.UserData
+                            && claim.Issuer.Equals(GrandCookieAuthenticationDefaults.ClaimsIssuer, StringComparison.InvariantCultureIgnoreCase));
+                        if (tokenClaim == null || tokenClaim.Value != customer.GetAttributeFromEntity<string>(SystemCustomerAttributeNames.LoginToken))
+                        {
+                            customer = null;
+                        }
+                    }
+                }
             }
 
             //whether the found customer is available

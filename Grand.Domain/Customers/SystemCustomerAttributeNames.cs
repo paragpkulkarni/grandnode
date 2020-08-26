@@ -33,6 +33,7 @@ namespace Grand.Domain.Customers
         public static string LastVisitedPage { get { return "LastVisitedPage"; } }
         public static string LastUrlReferrer { get { return "LastUrlReferrer"; } }
         public static string ImpersonatedCustomerId { get { return "ImpersonatedCustomerId"; } }
+        public static string LoginToken { get { return "LoginToken"; } }
         public static string AdminAreaStoreScopeConfiguration { get { return "AdminAreaStoreScopeConfiguration"; } }
         public static string TwoFactorEnabled { get { return "TwoFactorEnabled"; } }
         public static string TwoFactorSecretKey { get { return "TwoFactorSecretKey"; } }
